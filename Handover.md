@@ -1,4 +1,4 @@
-# CLAUDE.md — Project Context for Claude Code
+# Handover.md — Project Context for Claude Code
 
 ## Project
 
