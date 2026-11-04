@@ -104,8 +104,8 @@ export default function InputsTab({ s, set, result, wide }) {
           <span style={{ fontSize: 14, fontWeight: 700, fontFamily: MONO, color: result.agreement > 70 ? C.green : result.agreement > 45 ? C.amber : C.red }}>{result.agreement} %</span>
         </div>
         <div style={{ fontSize: 13, color: C.mut, marginTop: 6, lineHeight: 1.5 }}>
-          {result.agreement > 70 ? "Faktoren zeigen in eine Richtung." : "Widersprüchliche Signale: Die obere Spanne wird breiter. Entscheidung nur auf den Bear-Case stützen."}
-          {" "}Negative Faktoren verbreitern den Bear-Case.
+          {result.agreement > 70 ? "Faktoren zeigen in eine Richtung." : "Widersprüchliche Signale: Entscheidung nur auf den Bear-Case stützen."}
+          {" "}Negative Faktoren verbreitern den Bear-Case, positive den Bull-Case. Der Bull-Abstand bleibt immer kleiner als der Bear-Abstand.
         </div>
       </div>
     </div>

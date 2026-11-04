@@ -38,9 +38,9 @@ Real base rate = property-type anchor (0.2–0.6 % p.a.) + capped sum of factor 
 ## Invariants (enforced by `npm test`)
 
 - Bear < Base < Bull for every input combination, type and horizon.
-- Raising any factor score never lowers base or bear.
+- Raising any factor score never lowers bear, base or bull.
 - Real rates independent of inflation.
-- Annualised band narrows with horizon; downside wider than upside.
+- Annualised band narrows with horizon; downside wider than upside for every input (upside capped at 95 % of the smallest possible downside).
 
 ## Commands
 

@@ -67,7 +67,7 @@ export function KeyFigures({ result, outcome }) {
         <div style={{ flex: "1 1 150px" }}>
           <div style={{ fontSize: 13, color: C.sec }}>Kosten gedeckt ab</div>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: MONO, color: C.text, margin: "3px 0" }}>{fmtPct(outcome.breakEvenReal)} p.a.</div>
-          <div style={small}>real · erreicht in: {KEYS.filter(k => result.exact.real[k] >= outcome.breakEvenReal).map(k => SCENARIO_TEXT[k].label).join(", ") || "keinem Szenario"}</div>
+          <div style={small}>real · erreicht in: {KEYS.filter(k => outcome[k].netReal >= 0).map(k => SCENARIO_TEXT[k].label).join(", ") || "keinem Szenario"}</div>
         </div>
         <div style={{ flex: "1 1 150px" }}>
           <div style={{ fontSize: 13, color: C.sec }}>Stresstest</div>

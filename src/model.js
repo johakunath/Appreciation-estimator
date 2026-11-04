@@ -38,6 +38,8 @@ const DOWN_SKEW = 1.15;     // downside wider than upside (IMF house-prices-at-r
 const UP_SKEW = 0.9;
 export const STRESS = { shock: -15, years: 2 }; // one-off real drop like Berlin 2022–24 (~−16…−18 % real)
 
+const MIN_BEAR_ADJ = FACTORS.reduce((a, f) => a + (f.bear ? Math.min(...f.bear) : 0), 0);
+
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 const r1 = x => Math.round(x * 10) / 10;
 
@@ -81,8 +83,9 @@ export function computeAppreciation(inputs) {
   const cappedTilt = clamp(tilt, -2 * cap, cap);
   const baseReal = type.anchor + cappedTilt;
 
-  // Uncertainty multipliers (max ×1.5). Negative signals fatten the downside; positive and contradictory
-  // signals widen the upside. Keeps bear monotonic: improving a factor never lowers the bear case.
+  // Uncertainty multipliers. Negative signals fatten the downside (max ×1.5); positive signals widen the upside
+  // (max ×1.25). Contradictory inputs always contain negative signals, so they widen the band via the downside.
+  // Both multipliers are monotone in each score, which keeps bear and bull monotonic.
   const scores = FACTORS.map(f => inputs[f.key]);
   const n = scores.length;
   const mean = scores.reduce((a, b) => a + b, 0) / n;
@@ -90,12 +93,14 @@ export function computeAppreciation(inputs) {
   const posExt = scores.reduce((a, s) => a + Math.max(0, s - 3), 0) / n / 2;
   const disagreement = Math.sqrt(scores.reduce((a, s) => a + (s - mean) ** 2, 0) / n) / 2;
   const downMult = 1 + 0.5 * negExt;
-  const upMult = 1 + 0.25 * posExt + 0.25 * disagreement;
+  const upMult = 1 + 0.25 * posExt;
 
   const w = bandWidth(T);
   const downRaw = w * DOWN_SKEW * downMult * type.risk;
   const down = Math.max(0.5 * downRaw, downRaw + bearAdj);
-  const up = w * UP_SKEW * upMult;
+  // Anti-optimism: upside stays below the smallest downside possible for this horizon and type (score-independent cap).
+  const downFloor = Math.max(0.5 * w * DOWN_SKEW * type.risk, w * DOWN_SKEW * type.risk + MIN_BEAR_ADJ);
+  const up = Math.min(w * UP_SKEW * upMult, 0.95 * downFloor);
 
   const real = { bear: baseReal - down, base: baseReal, bull: baseReal + up };
   const nominal = { bear: toNominal(real.bear, inflation), base: toNominal(real.base, inflation), bull: toNominal(real.bull, inflation) };

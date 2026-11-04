@@ -32,7 +32,7 @@ describe("invariants over all inputs", () => {
     expect(bad).toBe(0);
   });
 
-  it("raising any single factor score never lowers base or bear", () => {
+  it("raising any single factor score never lowers bear, base or bull", () => {
     let bad = 0;
     for (const scores of allCombos())
       for (const years of HORIZONS) {
@@ -42,6 +42,7 @@ describe("invariants over all inputs", () => {
           const r2 = computeAppreciation({ ...DEFAULTS, ...scores, years, [k]: scores[k] + 1 });
           if (r2.exact.real.base < r.exact.real.base - 1e-9) bad++;
           if (r2.exact.real.bear < r.exact.real.bear - 1e-9) bad++;
+          if (r2.exact.real.bull < r.exact.real.bull - 1e-9) bad++;
         }
       }
     expect(bad).toBe(0);
@@ -68,7 +69,19 @@ describe("uncertainty", () => {
     expect(bandWidth(10)).toBeGreaterThan(bandWidth(15));
   });
 
-  it("downside is wider than upside", () => {
+  it("downside is wider than upside for every combination, type and horizon", () => {
+    let bad = 0;
+    for (const scores of allCombos())
+      for (const propertyType of Object.keys(PROPERTY_TYPES))
+        for (const years of HORIZONS) {
+          const r = computeAppreciation({ ...DEFAULTS, ...scores, propertyType, years });
+          const down = r.exact.real.base - r.exact.real.bear, up = r.exact.real.bull - r.exact.real.base;
+          if (!(down > up)) bad++;
+        }
+    expect(bad).toBe(0);
+  });
+
+  it("downside is wider than upside (defaults)", () => {
     const r = computeAppreciation(DEFAULTS);
     expect(r.down).toBeGreaterThan(r.up);
   });
@@ -120,6 +133,15 @@ describe("outcome", () => {
     const r = computeAppreciation(DEFAULTS);
     const a = computeOutcome(r, COSTS), b = computeOutcome(r, { ...COSTS, capex: 20000 });
     expect(a.base.netReal - b.base.netReal).toBeCloseTo(20000, 0);
+  });
+
+  it("a scenario covers costs exactly when its real net result is >= 0 (no rounding mismatch)", () => {
+    const r = computeAppreciation({ ...DEFAULTS, supplyDemand: 4, locationMomentum: 5, locationAmenities: 5, propertyQuality: 5, regulatoryRisk: 4, interestOutlook: 1 });
+    const o = computeOutcome(r, COSTS);
+    for (const k of ["bear", "base", "bull"]) {
+      const exactBreakEven = (Math.pow(o.totalCost / COSTS.price / (1 - COSTS.sellPct / 100), 1 / r.years) - 1) * 100;
+      expect(o[k].netReal >= 0).toBe(r.exact.real[k] >= exactBreakEven);
+    }
   });
 
   it("decision follows bear-case rule", () => {
