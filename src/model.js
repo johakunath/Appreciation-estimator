@@ -143,3 +143,15 @@ export function decisionLevel(outcome) {
   if (outcome.base.netReal >= 0) return "warn";
   return "bad";
 }
+
+/** Real value (today's money, before selling costs) if sold after t = 0…T years, per scenario. For the fan chart. */
+export function valuePath(inputs, price) {
+  const T = clamp(inputs.years ?? HORIZON.default, HORIZON.min, HORIZON.max);
+  const path = [{ t: 0, bear: price, base: price, bull: price }];
+  for (let t = 1; t <= T; t++) {
+    const r = computeAppreciation({ ...inputs, years: Math.max(t, HORIZON.min) }).exact.real;
+    const v = k => price * Math.pow(1 + r[k] / 100, t);
+    path.push({ t, bear: v("bear"), base: v("base"), bull: v("bull") });
+  }
+  return path;
+}

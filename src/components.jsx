@@ -88,7 +88,7 @@ export function NumberField({ label, value, onChange, min, max, unit, width }) {
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <input type="text" inputMode="decimal" value={text}
           onChange={e => setText(e.target.value)} onBlur={commit} onKeyDown={e => e.key === "Enter" && commit()}
-          style={{ flex: 1, minWidth: 0, padding: "8px 10px", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 15, fontFamily: MONO }} />
+          style={{ flex: 1, width: 0, minWidth: 0, padding: "8px 10px", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, color: C.text, fontSize: 15, fontFamily: MONO }} />
         {unit && <span style={{ fontSize: 13, color: C.mut }}>{unit}</span>}
       </div>
     </div>

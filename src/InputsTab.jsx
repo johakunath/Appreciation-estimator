@@ -1,11 +1,12 @@
 import { C, MONO, card, sectionLabel, chip, fmtPct } from "./theme.js";
 import { ScoreSelector, DivergingBar } from "./components.jsx";
+import { CostsCard } from "./ResultsTab.jsx";
 import { PROPERTY_TYPES } from "./model.js";
 import { PROPERTY_TYPE_TEXT, FACTOR_TEXT, INTEREST_OPTIONS, INFLATION_OPTIONS, MARKET_SNAPSHOT as M } from "./content.js";
 
 const riskLabel = r => (r > 1.05 ? "erhöht" : r < 0.97 ? "geringer" : "normal");
 
-export default function InputsTab({ s, set, result }) {
+export default function InputsTab({ s, set, result, wide }) {
   const type = PROPERTY_TYPES[s.propertyType];
   const factor = key => (
     <ScoreSelector key={key} label={FACTOR_TEXT[key].label} value={s[key]} onChange={v => set(key, v)}
@@ -14,6 +15,7 @@ export default function InputsTab({ s, set, result }) {
 
   return (
     <div>
+      {wide && <CostsCard s={s} set={set} />}
       <div style={card()}>
         <div style={sectionLabel(C.purple)}>Objekttyp</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>

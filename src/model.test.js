@@ -135,3 +135,17 @@ describe("number input parsing", () => {
     expect(parseDe(t)).toBe(v);
   });
 });
+
+import { valuePath } from "./model.js";
+describe("value path (fan chart)", () => {
+  const p = valuePath(DEFAULTS, COSTS.price);
+  it("starts at price and ends at the scenario values", () => {
+    expect(p[0].base).toBe(COSTS.price);
+    const o = computeOutcome(computeAppreciation(DEFAULTS), COSTS);
+    expect(p.at(-1).bear).toBeCloseTo(o.bear.realValue, 6);
+    expect(p.at(-1).bull).toBeCloseTo(o.bull.realValue, 6);
+  });
+  it("keeps bear < base < bull at every year after 0", () => {
+    for (const x of p.slice(1)) { expect(x.bear).toBeLessThan(x.base); expect(x.base).toBeLessThan(x.bull); }
+  });
+});

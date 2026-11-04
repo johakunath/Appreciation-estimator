@@ -1,138 +1,185 @@
 import { useState } from "react";
 import { C, MONO, card, LEVEL_COLOR, SCENARIO_COLOR, fmtPct, fmtK, fmtSignedK } from "./theme.js";
 import { NumberField } from "./components.jsx";
+import FanChart from "./FanChart.jsx";
 import { HORIZON, STRESS } from "./model.js";
 import { DECISION_TEXT, SCENARIO_TEXT } from "./content.js";
 
 const KEYS = ["bear", "base", "bull"];
-const sep = { width: "100%", height: 1, background: C.border, margin: "10px 0" };
 const small = { fontSize: 12, color: C.mut };
+const netColor = v => (v >= 0 ? C.green : C.red);
 
-export default function ResultsTab({ s, set, result, outcome, level }) {
-  const d = DECISION_TEXT[s.useCase][level];
-  const col = LEVEL_COLOR[level];
-  const [copied, setCopied] = useState(false);
-  const simText = `Bear ${result.nominal.bear} % · Base ${result.nominal.base} % · Bull ${result.nominal.bull} %`;
-  const copySim = () => navigator.clipboard?.writeText(simText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
+/* ── Building blocks, used by the narrow tab view and the wide sticky panel ── */
 
+export function CostsCard({ s, set }) {
   return (
-    <div>
-      <div style={card({ borderLeft: `4px solid ${col}` })}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: col, marginBottom: 5 }}>{d.title}</div>
-        <div style={{ fontSize: 14, color: C.sec, lineHeight: 1.7 }}>{d.text}</div>
+    <div style={card()}>
+      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: C.purple, marginBottom: 12 }}>Kauf & Kosten</div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <NumberField label="Kaufpreis" unit="€" value={s.price} min={10000} max={10000000} onChange={v => set("price", v)} width={150} />
+        <NumberField label="Haltedauer" unit="Jahre" value={s.years} min={HORIZON.min} max={HORIZON.max} onChange={v => set("years", Math.round(v))} width={100} />
+        <NumberField label="Kaufnebenkosten" unit="%" value={s.knkPct} min={0} max={20} onChange={v => set("knkPct", v)} width={100} />
+        <NumberField label="Verkaufskosten" unit="%" value={s.sellPct} min={0} max={10} onChange={v => set("sellPct", v)} width={100} />
+        <NumberField label="Sonderkosten" unit="€" value={s.capex} min={0} max={5000000} onChange={v => set("capex", v)} width={120} />
       </div>
-
-      <div style={card()}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <NumberField label="Kaufpreis" unit="€" value={s.price} min={10000} max={10000000} onChange={v => set("price", v)} width={170} />
-          <NumberField label="Haltedauer" unit="Jahre" value={s.years} min={HORIZON.min} max={HORIZON.max} onChange={v => set("years", Math.round(v))} width={110} />
-          <NumberField label="Kaufnebenkosten" unit="%" value={s.knkPct} min={0} max={20} onChange={v => set("knkPct", v)} width={110} />
-          <NumberField label="Verkaufskosten" unit="%" value={s.sellPct} min={0} max={10} onChange={v => set("sellPct", v)} width={110} />
-          <NumberField label="Sonderkosten (Sanierung, Umlage)" unit="€" value={s.capex} min={0} max={5000000} onChange={v => set("capex", v)} width={170} />
-        </div>
-        <div style={{ ...small, marginTop: 8, lineHeight: 1.5 }}>
-          Berlin: Grunderwerbsteuer 6 % + Notar/Grundbuch ~1,5–2 % + Makler 3,57 % ≈ 11 % (ohne Makler ~7,5 %). Verkauf mit Makler: ~3,57 %. Laufende Instandhaltung ist nicht enthalten.
-        </div>
+      <div style={{ ...small, marginTop: 8, lineHeight: 1.5 }}>
+        Berlin: Grunderwerbsteuer 6 % + Notar/Grundbuch ~1,5–2 % + Makler 3,57 % ≈ 11 % (ohne Makler ~7,5 %). Verkauf mit Makler ~3,57 %. Sonderkosten = Sanierung, Heizungstausch, Sonderumlage. Laufende Instandhaltung ist nicht enthalten.
       </div>
+    </div>
+  );
+}
 
-      {s.useCase === "investment" && s.years < 10 && (
-        <div style={card({ borderLeft: `4px solid ${C.amber}` })}>
-          <div style={{ fontSize: 14, color: C.sec, lineHeight: 1.6 }}>
-            <strong style={{ color: C.amber }}>Spekulationsfrist:</strong> Verkauf vor 10 Jahren ist einkommensteuerpflichtig (§23 EStG). Bereits genutzte Abschreibung (AfA) erhöht den steuerpflichtigen Gewinn. Hier nicht eingerechnet.
-          </div>
-        </div>
-      )}
+export function DecisionCard({ s, level }) {
+  const d = DECISION_TEXT[s.useCase][level], col = LEVEL_COLOR[level];
+  return (
+    <div style={card({ borderLeft: `4px solid ${col}` })}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: col, marginBottom: 5 }}>{d.title}</div>
+      <div style={{ fontSize: 13, color: C.sec, lineHeight: 1.6 }}>{d.text}</div>
+    </div>
+  );
+}
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        {KEYS.map(k => {
-          const o = outcome[k], c = SCENARIO_COLOR[k];
-          return (
-            <div key={k} style={{
-              flex: "1 1 200px", background: C.card, borderRadius: 9, padding: "14px 12px", textAlign: "center",
-              border: `1px solid ${C.border}`, borderTop: `3px solid ${c}`, display: "flex", flexDirection: "column", alignItems: "center",
-            }}>
-              <div style={{ fontSize: 13, color: c, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{SCENARIO_TEXT[k].label}</div>
-              <div style={{ ...small, marginBottom: 8 }}>{SCENARIO_TEXT[k].plain}</div>
-              <div style={{ fontSize: 26, fontWeight: 700, fontFamily: MONO, color: c, lineHeight: 1 }}>{fmtPct(result.real[k])}</div>
-              <div style={{ ...small, marginTop: 3 }}>p.a. real (nach Inflation)</div>
-              <div style={{ fontSize: 14, fontFamily: MONO, color: C.sec, marginTop: 6 }}>{fmtPct(result.nominal[k])}</div>
-              <div style={small}>p.a. nominal</div>
-
-              <div style={sep} />
-              <div style={small}>Wert nach {result.years} J. in heutiger Kaufkraft</div>
-              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: MONO, color: C.text, marginBottom: 4 }}>{fmtK(o.realValue)}</div>
-              <div style={small}>nominal: {fmtK(o.nomValue)}</div>
-
-              <div style={sep} />
-              <div style={{ fontSize: 13, color: C.sec }}>Ergebnis nach allen Kosten, real</div>
-              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: MONO, color: o.netReal >= 0 ? C.green : C.red, margin: "3px 0" }}>{fmtSignedK(o.netReal)}</div>
-              <div style={small}>nominal: {fmtSignedK(o.netNominal)}</div>
-            </div>
-          );
-        })}
+export function TaxWarning({ s }) {
+  if (s.useCase !== "investment" || s.years >= 10) return null;
+  return (
+    <div style={card({ borderLeft: `4px solid ${C.amber}` })}>
+      <div style={{ fontSize: 13, color: C.sec, lineHeight: 1.6 }}>
+        <strong style={{ color: C.amber }}>Spekulationsfrist:</strong> Verkauf vor 10 Jahren ist einkommensteuerpflichtig (§23 EStG). Bereits genutzte Abschreibung (AfA) erhöht den Gewinn. Hier nicht eingerechnet.
       </div>
+    </div>
+  );
+}
 
-      <div style={card()}>
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 260px" }}>
-            <div style={{ fontSize: 13, color: C.sec }}>Nötige reale Wertsteigerung, um alle Kosten wieder einzuspielen</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: MONO, color: C.text, margin: "4px 0" }}>{fmtPct(outcome.breakEvenReal)} p.a.</div>
-            <div style={small}>
-              Erreicht in: {KEYS.filter(k => result.exact.real[k] >= outcome.breakEvenReal).map(k => SCENARIO_TEXT[k].label).join(", ") || "keinem Szenario"}
-            </div>
-          </div>
-          <div style={{ flex: "1 1 260px" }}>
-            <div style={{ fontSize: 13, color: C.sec }}>Stresstest: einmalig {STRESS.shock} % real in den ersten {STRESS.years} Jahren (wie 2022–24), danach Base</div>
-            <div style={{ fontSize: 22, fontWeight: 700, fontFamily: MONO, color: outcome.stress.netReal >= 0 ? C.green : C.red, margin: "4px 0" }}>{fmtSignedK(outcome.stress.netReal)}</div>
-            <div style={small}>Ergebnis nach allen Kosten, real</div>
-          </div>
+export function ChartCard({ path, outcome, s }) {
+  const breakEvenValue = outcome.totalCost / (1 - s.sellPct / 100);
+  return (
+    <div style={card()}>
+      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sec, marginBottom: 8 }}>Wertverlauf real</div>
+      <FanChart path={path} breakEvenValue={breakEvenValue} />
+    </div>
+  );
+}
+
+export function KeyFigures({ result, outcome }) {
+  return (
+    <div style={card()}>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 150px" }}>
+          <div style={{ fontSize: 13, color: C.sec }}>Kosten gedeckt ab</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: MONO, color: C.text, margin: "3px 0" }}>{fmtPct(outcome.breakEvenReal)} p.a.</div>
+          <div style={small}>real · erreicht in: {KEYS.filter(k => result.exact.real[k] >= outcome.breakEvenReal).map(k => SCENARIO_TEXT[k].label).join(", ") || "keinem Szenario"}</div>
         </div>
-      </div>
-
-      <RangeBar result={result} breakEven={outcome.breakEvenReal} />
-
-      <div style={card({ borderLeft: `4px solid ${C.purple}` })}>
-        <div style={{ fontSize: 14, color: C.sec, lineHeight: 1.7 }}>
-          <strong style={{ color: C.purple }}>Regel:</strong> Ein Deal muss beim <strong style={{ color: C.red }}>Bear-Case</strong> funktionieren. Wenn er nur bei Base/Bull aufgeht, spekulierst du auf Wertsteigerung.
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, color: C.mut }}>Für den Capital Allocation Simulator (nominal):</span>
-          <span style={{ fontSize: 13, fontFamily: MONO, color: C.text }}>{simText.replaceAll(".", ",")}</span>
-          <button onClick={copySim} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, border: `1px solid ${C.border}`, background: C.card2, color: copied ? C.green : C.sec, cursor: "pointer" }}>
-            {copied ? "Kopiert" : "Kopieren"}
-          </button>
+        <div style={{ flex: "1 1 150px" }}>
+          <div style={{ fontSize: 13, color: C.sec }}>Stresstest</div>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: MONO, color: netColor(outcome.stress.netReal), margin: "3px 0" }}>{fmtSignedK(outcome.stress.netReal)}</div>
+          <div style={small}>einmalig {STRESS.shock} % real in {STRESS.years} J. (wie 2022–24), danach Base</div>
         </div>
       </div>
     </div>
   );
 }
 
-function RangeBar({ result, breakEven }) {
-  const lo = Math.min(-5, Math.floor(result.real.bear) - 1), hi = Math.max(5, Math.ceil(result.real.bull) + 1);
-  const x = v => `${((v - lo) / (hi - lo)) * 100}%`;
-  const ticks = [];
-  for (let t = Math.ceil(lo); t <= hi; t++) ticks.push(t);
+/** Compact table of all scenario numbers (also the table view of the chart). */
+export function ScenarioTable({ result, outcome }) {
+  const rows = [
+    ["Rate p.a. real", k => fmtPct(result.real[k])],
+    ["Rate p.a. nominal", k => fmtPct(result.nominal[k])],
+    [`Wert nach ${result.years} J. (heutige Kaufkraft)`, k => fmtK(outcome[k].realValue)],
+    [`Wert nach ${result.years} J. nominal`, k => fmtK(outcome[k].nomValue)],
+    ["Ergebnis nach allen Kosten, real", k => <span style={{ color: netColor(outcome[k].netReal), fontWeight: 700 }}>{fmtSignedK(outcome[k].netReal)}</span>],
+    ["Ergebnis nach allen Kosten, nominal", k => fmtSignedK(outcome[k].netNominal)],
+  ];
+  const td = { padding: "6px 6px", borderBottom: `1px solid ${C.border}`, fontSize: 13 };
   return (
-    <div style={card()}>
-      <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: C.sec, marginBottom: 14 }}>
-        Spanne real p.a.: Bear −{String(result.down).replace(".", ",")} / Bull +{String(result.up).replace(".", ",")} Prozentpunkte um Base
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead>
+        <tr>
+          <th style={{ ...td, textAlign: "left", color: C.mut, fontWeight: 500 }} />
+          {KEYS.map(k => (
+            <th key={k} style={{ ...td, textAlign: "right", color: C.text, fontWeight: 700 }}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: SCENARIO_COLOR[k], marginRight: 5 }} />{SCENARIO_TEXT[k].label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(([label, f]) => (
+          <tr key={label}>
+            <td style={{ ...td, color: C.sec }}>{label}</td>
+            {KEYS.map(k => <td key={k} style={{ ...td, textAlign: "right", fontFamily: MONO, color: C.text, whiteSpace: "nowrap" }}>{f(k)}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function SimulatorLine({ result }) {
+  const [copied, setCopied] = useState(false);
+  const simText = `Bear ${result.nominal.bear} % · Base ${result.nominal.base} % · Bull ${result.nominal.bull} %`;
+  const copy = () => navigator.clipboard?.writeText(simText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13, color: C.mut }}>Capital Allocation Simulator (nominal):</span>
+      <span style={{ fontSize: 13, fontFamily: MONO, color: C.text }}>{simText.replaceAll(".", ",")}</span>
+      <button onClick={copy} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 5, border: `1px solid ${C.border}`, background: C.card2, color: copied ? C.green : C.sec, cursor: "pointer" }}>
+        {copied ? "Kopiert" : "Kopieren"}
+      </button>
+    </div>
+  );
+}
+
+const Rule = () => (
+  <div style={{ fontSize: 13, color: C.sec, lineHeight: 1.6 }}>
+    <strong style={{ color: C.purple }}>Regel:</strong> Ein Deal muss im <strong style={{ color: C.text }}>Bear-Case</strong> funktionieren. Geht er nur bei Base/Bull auf, spekulierst du auf Wertsteigerung.
+  </div>
+);
+
+/* ── Narrow screens: full results tab ── */
+
+export default function ResultsTab({ s, set, result, outcome, level, path }) {
+  return (
+    <div>
+      <DecisionCard s={s} level={level} />
+      <CostsCard s={s} set={set} />
+      <TaxWarning s={s} />
+      <ChartCard path={path} outcome={outcome} s={s} />
+      <KeyFigures result={result} outcome={outcome} />
+      <div style={card()}><ScenarioTable result={result} outcome={outcome} /></div>
+      <div style={card({ borderLeft: `4px solid ${C.purple}` })}>
+        <Rule />
+        <div style={{ marginTop: 10 }}><SimulatorLine result={result} /></div>
       </div>
-      <div style={{ position: "relative", height: 64 }}>
-        <div style={{ position: "absolute", top: 24, left: 0, right: 0, height: 14, background: C.card2, borderRadius: 7 }} />
-        <div style={{ position: "absolute", top: 24, left: x(result.real.bear), width: `calc(${x(result.real.bull)} - ${x(result.real.bear)})`, height: 14, background: `linear-gradient(90deg, ${C.red}66, ${C.accent}66, ${C.green}66)`, borderRadius: 7 }} />
-        <div style={{ position: "absolute", top: 18, bottom: 20, left: x(0), width: 1, background: C.sec }} />
-        <div style={{ position: "absolute", top: 18, bottom: 20, left: x(breakEven), width: 2, background: C.amber }} />
-        <div style={{ position: "absolute", top: 0, left: x(breakEven), transform: "translateX(-50%)", fontSize: 12, color: C.amber, whiteSpace: "nowrap" }}>Kosten gedeckt</div>
-        <div style={{ position: "absolute", top: 19, left: x(result.real.base), transform: "translateX(-50%)", width: 5, height: 24, background: C.accent, borderRadius: 3 }} />
-        {ticks.map(t => (
-          <div key={t} style={{ position: "absolute", top: 46, left: x(t), transform: "translateX(-50%)", fontSize: 12, color: t === 0 ? C.sec : C.mut, fontFamily: MONO }}>{t}</div>
+    </div>
+  );
+}
+
+/* ── Wide screens: sticky panel next to the inputs ── */
+
+export function ResultsPanel({ s, result, outcome, level, path }) {
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {KEYS.map(k => (
+          <div key={k} style={{ flex: 1, background: C.card, borderRadius: 8, padding: "10px 6px", border: `1px solid ${C.border}`, borderTop: `3px solid ${SCENARIO_COLOR[k]}`, textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: C.mut, fontWeight: 600 }}>{SCENARIO_TEXT[k].label} <span style={{ fontWeight: 400 }}>· {SCENARIO_TEXT[k].plain}</span></div>
+            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: MONO, color: SCENARIO_COLOR[k], margin: "2px 0" }}>{fmtPct(result.real[k])}</div>
+            <div style={small}>real p.a.</div>
+            <div style={{ fontSize: 13, fontFamily: MONO, fontWeight: 700, color: netColor(outcome[k].netReal), marginTop: 6 }}>{fmtSignedK(outcome[k].netReal)}</div>
+            <div style={small}>nach Kosten</div>
+          </div>
         ))}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: MONO }}>
-        <span style={{ color: C.red }}>Bear {fmtPct(result.real.bear)}</span>
-        <span style={{ color: C.accent }}>Base {fmtPct(result.real.base)}</span>
-        <span style={{ color: C.green }}>Bull {fmtPct(result.real.bull)}</span>
-      </div>
+      <DecisionCard s={s} level={level} />
+      <TaxWarning s={s} />
+      <ChartCard path={path} outcome={outcome} s={s} />
+      <KeyFigures result={result} outcome={outcome} />
+      <details style={card({ padding: "12px 16px" })}>
+        <summary style={{ fontSize: 13, color: C.accent, cursor: "pointer" }}>Details: alle Werte, nominal, Simulator-Raten</summary>
+        <div style={{ marginTop: 10 }}><ScenarioTable result={result} outcome={outcome} /></div>
+        <div style={{ marginTop: 12 }}><Rule /></div>
+        <div style={{ marginTop: 10 }}><SimulatorLine result={result} /></div>
+      </details>
     </div>
   );
 }

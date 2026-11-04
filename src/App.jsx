@@ -1,15 +1,28 @@
 import { useState, useEffect } from "react";
 import { C, MONO, SCENARIO_COLOR, fmtPct } from "./theme.js";
-import { computeAppreciation, computeOutcome, decisionLevel } from "./model.js";
+import { computeAppreciation, computeOutcome, decisionLevel, valuePath } from "./model.js";
 import { SCENARIO_TEXT, DEFAULTS } from "./content.js";
 import { readState, writeState } from "./urlState.js";
 import InputsTab from "./InputsTab.jsx";
-import ResultsTab from "./ResultsTab.jsx";
+import ResultsTab, { ResultsPanel } from "./ResultsTab.jsx";
 import GuideTab from "./GuideTab.jsx";
 
 /* WERTSTEIGERUNG · APPRECIATION ESTIMATOR v4. Model: model.js · Texts/market facts: content.js */
 
 const TABS = [{ id: "inputs", label: "Bewertung" }, { id: "results", label: "Szenarien" }, { id: "guide", label: "Anleitung" }];
+const WIDE_QUERY = "(min-width: 920px)";
+
+function useWide() {
+  const mq = typeof window !== "undefined" && window.matchMedia ? window.matchMedia(WIDE_QUERY) : null;
+  const [wide, setWide] = useState(mq ? mq.matches : false);
+  useEffect(() => {
+    if (!mq) return;
+    const on = e => setWide(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
 const USE_CASES = [{ id: "investment", label: "Kapitalanlage" }, { id: "selfuse", label: "Eigennutzung" }];
 
 const segBtn = (active, activeBg, activeColor) => ({
@@ -28,6 +41,10 @@ export default function App() {
   const result = computeAppreciation(s);
   const outcome = computeOutcome(result, s);
   const level = decisionLevel(outcome);
+  const path = valuePath(s, s.price);
+  const wide = useWide();
+  const tabs = wide ? TABS.filter(t => t.id !== "results") : TABS;
+  const activeTab = wide && tab === "results" ? "inputs" : tab;
 
   const copyLink = () => navigator.clipboard?.writeText(window.location.href).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); });
 
@@ -40,7 +57,7 @@ export default function App() {
         button:focus-visible { outline: 2px solid ${C.accent}; outline-offset: 2px; }
       `}</style>
 
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ maxWidth: wide ? 1320 : 980, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: C.teal, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: 4 }}>Project Property</div>
@@ -55,6 +72,7 @@ export default function App() {
           </div>
         </div>
 
+        {!wide && <>
         <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
           {["bear", "base", "bull"].map(k => (
             <div key={k} style={{ flex: "1 1 160px", background: C.card, borderRadius: 9, padding: "12px 10px", border: `1px solid ${C.border}`, borderTop: `3px solid ${SCENARIO_COLOR[k]}`, textAlign: "center" }}>
@@ -69,21 +87,32 @@ export default function App() {
         <div style={{ fontSize: 12, color: C.mut, textAlign: "center", marginBottom: 14 }}>
           Wertsteigerung p.a. über {result.years} Jahre · real = nach Inflation · Kosten gedeckt ab {fmtPct(outcome.breakEvenReal)} real
         </div>
+        </>}
 
-        <div style={segWrap}>
-          {USE_CASES.map(u => (
-            <button key={u.id} aria-pressed={s.useCase === u.id} onClick={() => set("useCase", u.id)} style={segBtn(s.useCase === u.id, C.accent + "1A", C.accent)}>{u.label}</button>
-          ))}
-        </div>
-        <div role="tablist" style={{ ...segWrap, marginBottom: 16 }}>
-          {TABS.map(t => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={segBtn(tab === t.id, C.card2, C.text)}>{t.label}</button>
-          ))}
-        </div>
+        <div style={wide ? { display: "flex", gap: 20, alignItems: "flex-start" } : undefined}>
+          <div style={wide ? { flex: 1, minWidth: 0 } : undefined}>
+            <div style={segWrap}>
+              {USE_CASES.map(u => (
+                <button key={u.id} aria-pressed={s.useCase === u.id} onClick={() => set("useCase", u.id)} style={segBtn(s.useCase === u.id, C.accent + "1A", C.accent)}>{u.label}</button>
+              ))}
+            </div>
+            <div role="tablist" style={{ ...segWrap, marginBottom: 16 }}>
+              {tabs.map(t => (
+                <button key={t.id} role="tab" aria-selected={activeTab === t.id} onClick={() => setTab(t.id)} style={segBtn(activeTab === t.id, C.card2, C.text)}>{t.label}</button>
+              ))}
+            </div>
 
-        {tab === "inputs" && <InputsTab s={s} set={set} result={result} />}
-        {tab === "results" && <ResultsTab s={s} set={set} result={result} outcome={outcome} level={level} />}
-        {tab === "guide" && <GuideTab />}
+            {activeTab === "inputs" && <InputsTab s={s} set={set} result={result} wide={wide} />}
+            {activeTab === "results" && <ResultsTab s={s} set={set} result={result} outcome={outcome} level={level} path={path} />}
+            {activeTab === "guide" && <GuideTab />}
+          </div>
+
+          {wide && (
+            <aside aria-label="Ergebnis" style={{ width: 400, flexShrink: 0, position: "sticky", top: 16, maxHeight: "calc(100vh - 32px)", overflowY: "auto" }}>
+              <ResultsPanel s={s} result={result} outcome={outcome} level={level} path={path} />
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -25,7 +25,8 @@ Workflow of the suite: Immobilien Screener (GRY/cashflow) → **this tool** (app
 | `src/content.js` | All UI texts, factor descriptions, `MARKET_SNAPSHOT` (dated facts), defaults | Text/fact changes |
 | `src/theme.js` | Colors `C`, shared styles, number formatting (de-DE) | Styling |
 | `src/components.jsx` | ScoreSelector, DivergingBar, NumberField | Shared UI |
-| `src/InputsTab.jsx` / `ResultsTab.jsx` / `GuideTab.jsx` | Tab views | Layout of a tab |
+| `src/InputsTab.jsx` / `ResultsTab.jsx` / `GuideTab.jsx` | Tab views; `ResultsTab.jsx` also exports result blocks + `ResultsPanel` | Layout of a tab |
+| `src/FanChart.jsx` | SVG fan chart (real value path vs. cost line), hover tooltip | Chart changes |
 | `src/App.jsx` | State, header, banner, tabs | Global UI/state |
 | `src/urlState.js` | Inputs ↔ URL hash (shareable links) | New inputs |
 | `docs/REVIEW-2026-11.md` | Review, evidence, sources for calibration | Before changing calibration |
@@ -57,7 +58,8 @@ npm run build    # → dist/ (deployed to GitHub Pages from main)
 - Min font size 12 px (labels), 13 px body. Numbers in JetBrains Mono.
 - State is shareable via URL hash. **No localStorage** (keep the app usable as a Claude.ai artifact).
 - Dated facts (rates, inflation, regulation) only in `MARKET_SNAPSHOT` / `content.js` with `asOf`. Refresh yearly; cite primary sources (Destatis, EZB, Bundesbank, GREIX, Gutachterausschuss Berlin, vdp). No SEO blogs.
-- New chart types or page layouts: SVG mockup first, owner chooses, then implement.
+- New chart types or page layouts: SVG mockup first, owner chooses, then implement. Show the mockup **directly in the chat** as a rendered image (PNG screenshot) or inline artifact, never only as an HTML file or path.
+- Layout: ≥920 px two columns (inputs left, sticky `ResultsPanel` right, tabs Bewertung | Anleitung); below that one column with tabs Bewertung | Szenarien | Anleitung.
 
 ## Do not
 
